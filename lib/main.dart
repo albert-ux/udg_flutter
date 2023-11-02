@@ -10,12 +10,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Welcome to Flutter',
+      title: 'Peliculas divertidas',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Welcome to Flutter'),
+      home: const MyHomePage(title: 'Peliculas divertidas'),
     );
   }
 }
@@ -45,13 +45,20 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: SingleChildScrollView( // Añadido para permitir el desplazamiento si el contenido supera la pantalla.
+      body: SingleChildScrollView(
+        child: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/fondo.png'), 
+              fit: BoxFit.cover,
+            ),
+          ),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               const Text(
-                '¡Hola Mundo!',
+                'Buscas tus peliculas favoritas',
                 style: TextStyle(
                   fontSize: 24,
                   color: Colors.blue,
@@ -97,7 +104,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               SizedBox(height: 20),
               const Text(
-                'Hello World',
+                'Peliculas',
               ),
               Text(
                 '$_counter',
@@ -106,6 +113,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           ),
         ),
+      ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
