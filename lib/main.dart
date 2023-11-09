@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
@@ -10,12 +13,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Peliculas divertidas',
+      title: 'Pokémon Flutter App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Peliculas divertidas'),
+      home: const MyHomePage(title: 'Pokémon Flutter App'),
     );
   }
 }
@@ -30,96 +33,113 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: SingleChildScrollView(
-        child: Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/fondo.png'), 
-              fit: BoxFit.cover,
-            ),
-          ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              const Text(
-                'Buscas tus peliculas favoritas',
-                style: TextStyle(
-                  fontSize: 24,
-                  color: Colors.blue,
-                ),
-              ),
-              SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(Icons.star, color: Colors.yellow),
-                  SizedBox(width: 10),
-                  Text('Esto es una fila'),
-                ],
-              ),
-              SizedBox(height: 20),
-              Stack(
-                alignment: Alignment.center,
-                children: <Widget>[
-                  Container(
-                    width: 100,
-                    height: 100,
-                    color: Colors.red,
-                  ),
-                  Container(
-                    width: 60,
-                    height: 60,
-                    color: Colors.green,
-                  ),
-                  Text('Encima de los contenedores'),
-                ],
-              ),
-              SizedBox(height: 20),
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Center(
-                  child: Text('Contenedor'),
-                ),
-              ),
-              SizedBox(height: 20),
-              const Text(
-                'Peliculas',
-              ),
-              Text(
-                '$_counter',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-            ],
-          ),
+    return BlocProvider(
+      create: (_) => PokemonBloc()..add(PokemonPageRequest(page: 0)),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.title),
         ),
+        body: PokemonView(),
       ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), 
     );
+  }
+}
+
+class PokemonView extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<PokemonBloc, PokemonState>(
+      builder: (context, state) {
+        if (state is PokemonLoadInProgress) {
+          return Center(child: CircularProgressIndicator());
+        } else if (state is PokemonPageLoadSuccess) {
+          return ListView.builder(
+            itemBuilder: (context, index) {
+              return ListTile(
+                leading: Image.network(state.pokemonListings[index].imageUrl),
+                title: Text(state.pokemonListings[index].name),
+              );
+            },
+            itemCount: state.pokemonListings.length,
+          );
+        } else if (state is PokemonPageLoadFailed) {
+          return Center(child: Text(state.error));
+        } else {
+          return Center(child: Text('Unknown state'));
+        }
+      },
+    );
+  }
+}
+
+class PokemonBloc extends Bloc<PokemonEvent, PokemonState> {
+  PokemonBloc() : super(PokemonInitial()) {
+    on<PokemonPageRequest>((event, emit) async {
+      emit(PokemonLoadInProgress());
+      try {
+        final pokemonPageResponse = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon?offset=${event.page}&limit=20'));
+        final pokemonPage = PokemonPage.fromJson(jsonDecode(pokemonPageResponse.body));
+        emit(PokemonPageLoadSuccess(pokemonListings: pokemonPage.results));
+      } catch (e) {
+        emit(PokemonPageLoadFailed(error: e.toString()));
+      }
+    });
+  }
+}
+
+abstract class PokemonEvent {}
+
+class PokemonPageRequest extends PokemonEvent {
+  final int page;
+
+  PokemonPageRequest({required this.page});
+}
+
+abstract class PokemonState {}
+
+class PokemonInitial extends PokemonState {}
+
+class PokemonLoadInProgress extends PokemonState {}
+
+class PokemonPageLoadSuccess extends PokemonState {
+  final List<PokemonListing> pokemonListings;
+
+  PokemonPageLoadSuccess({required this.pokemonListings});
+}
+
+class PokemonPageLoadFailed extends PokemonState {
+  final String error;
+
+  PokemonPageLoadFailed({required this.error});
+}
+
+class PokemonPage {
+  final List<PokemonListing> results;
+
+  PokemonPage({required this.results});
+
+  factory PokemonPage.fromJson(Map<String, dynamic> json) {
+    final results = (json['results'] as List)
+        .map((listingJson) => PokemonListing.fromJson(listingJson))
+        .toList();
+
+    return PokemonPage(results: results);
+  }
+}
+
+class PokemonListing {
+  final String name;
+  final String imageUrl;
+
+  PokemonListing({required this.name, required this.imageUrl});
+
+  factory PokemonListing.fromJson(Map<String, dynamic> json) {
+    final name = json['name'];
+    final imageUrl = json['sprites']['front_default'];
+
+    return PokemonListing(name: name, imageUrl: imageUrl);
   }
 }
