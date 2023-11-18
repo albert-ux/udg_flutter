@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -121,12 +123,16 @@ class PokemonPage {
 
   PokemonPage({required this.results});
 
-  factory PokemonPage.fromJson(Map<String, dynamic> json) {
-    final results = (json['results'] as List)
-        .map((listingJson) => PokemonListing.fromJson(listingJson))
-        .toList();
-
-    return PokemonPage(results: results);
+  factory PokemonPage.fromFirestore() {
+    return FirebaseFirestore.instance
+        .collection('pokemon')
+        .get()
+        .then((QuerySnapshot querySnapshot) {
+      final results = querySnapshot.docs
+          .map((doc) => PokemonListing.fromJson(doc.data()))
+          .toList();
+      return PokemonPage(results: results);
+    });
   }
 }
 
